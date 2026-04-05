@@ -58,6 +58,17 @@ async function init() {
 function renderSidebar() {
     const el = document.getElementById('calendar-list');
 
+    // Sync toggle-all checkbox
+    const box = document.getElementById('toggle-all-cals-box');
+    if (box) {
+        const allVisible = state.calendars.length > 0 && state.hiddenCalendars.size === 0;
+        const checkSvg   = `<svg viewBox="0 0 10 8" fill="none" class="w-2.5 h-2 text-white shrink-0"><path d="M1 3.5L3.8 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        box.style.cssText = allVisible
+            ? 'border:2px solid #9ca3af;background:#9ca3af'
+            : 'border:2px solid #9ca3af;background:transparent';
+        box.innerHTML = allVisible ? checkSvg : '';
+    }
+
     if (state.calendars.length === 0) {
         el.innerHTML = '<div class="px-3 py-2 text-sm text-gray-400">No calendars found.</div>';
         return;
@@ -80,6 +91,17 @@ function renderSidebar() {
             <span class="text-sm truncate flex-1 ${textCls}">${esc(cal.name)}</span>
         </button>`;
     }).join('');
+}
+
+function toggleAllCalendars() {
+    if (state.hiddenCalendars.size === 0) {
+        state.calendars.forEach(cal => state.hiddenCalendars.add(cal.href));
+    } else {
+        state.hiddenCalendars.clear();
+    }
+    localStorage.setItem('wc_hidden', JSON.stringify([...state.hiddenCalendars]));
+    renderSidebar();
+    render();
 }
 
 function toggleCalendar(href) {
@@ -193,6 +215,7 @@ function renderList() {
         const labelCls = isToday ? 'text-blue-500' : 'text-gray-400';
 
         const items = groups[key].map(ev => {
+            console.log("ev",ev);
             const idx     = regEv(ev);
             const timeStr = ev.allDay
                 ? 'Ganztägig'
@@ -204,7 +227,7 @@ function renderList() {
             <div class="mb-2 last:mb-0 -mx-1 px-1 py-0.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                  onclick="openEditModal(${idx})">
                 <div class="flex gap-2.5 min-w-0">
-                    <span class="w-2.5 h-2.5 mt-1.5 rounded-full shrink-0" style="background-color:${ev.color}"></span>
+                    <span class="w-2.5 h-2.5 mt-1.5 rounded-full shrink-0" style="background-color:${ev.color}" title="${esc(state.calendars.find(c => c.href === ev.calendarHref)?.name ?? '')}"></span>
                     <span class="text-sm text-gray-400 md:w-32 w-16 shrink-0">${esc(timeStr)}</span>
                     <span class="text-sm text-gray-900">${esc(ev.summary)}</span>
                 </div>

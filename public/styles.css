@@ -1054,6 +1054,13 @@
     -webkit-user-select: none;
     user-select: none;
   }
+  .group-hover\:text-gray-500 {
+    &:is(:where(.group):hover *) {
+      @media (hover: hover) {
+        color: var(--color-gray-500);
+      }
+    }
+  }
   .last\:mb-0 {
     &:last-child {
       margin-bottom: calc(var(--spacing) * 0);

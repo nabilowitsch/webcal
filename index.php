@@ -228,7 +228,11 @@ $csrf     = csrfToken();
         <!-- Calendar list -->
         <div class="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
             <div class="flex items-center justify-between px-3 mb-2">
-                <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Calendars</p>
+                <button onclick="toggleAllCalendars()" class="flex items-center gap-2 text-left group">
+                    <span id="toggle-all-cals-box"
+                          class="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-colors"></span>
+                    <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase group-hover:text-gray-500 transition-colors">Calendars</p>
+                </button>
                 <button onclick="openNewCalendarModal()" title="Add calendar"
                         class="p-1 text-gray-400 hover:bg-gray-200 transition-colors p-0.5 rounded">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
