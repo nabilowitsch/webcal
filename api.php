@@ -104,6 +104,21 @@ try {
         ]);
         echo json_encode(['ok' => true, 'href' => $href]);
 
+    } elseif ($action === 'delete') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            exit;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data || empty($data['href'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing href']);
+            exit;
+        }
+        $caldav->deleteEvent($data['href'], $data['etag'] ?? null);
+        echo json_encode(['ok' => true]);
+
     } elseif ($action === 'create-calendar') {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
@@ -716,6 +731,18 @@ class CalDAV
             if (in_array($key, $exdates, true)) return true;
         }
         return false;
+    }
+
+    // ── Event delete ─────────────────────────────────────────────────────────
+
+    public function deleteEvent(string $href): void
+    {
+        $url    = $this->resolveHref($href);
+        $result = $this->curlRequest('DELETE', $url, '', ['If-Match' => '*']);
+
+        if ($result['status'] >= 400) {
+            throw new RuntimeException("Delete failed (HTTP {$result['status']})");
+        }
     }
 
     // ── Calendar create ──────────────────────────────────────────────────────

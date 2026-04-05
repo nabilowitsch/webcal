@@ -289,14 +289,14 @@ $csrf     = csrfToken();
                   </div>
                 </div>
                 <!-- navigation bar for month view -->
-                <div id="month-nav" class="hidden items-center gap-1">
+                <div id="month-nav" class="flex hidden items-center gap-1">
                     <button onclick="changeMonth(-1)"
                             class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </button>
-                    <span id="month-label" class="text-sm font-semibold text-gray-800 min-w-32 text-center select-none"></span>
+                    <div id="month-label" class="text-sm font-semibold text-gray-800 min-w-30 text-center select-none"></div>
                     <button onclick="changeMonth(1)"
                             class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -427,15 +427,21 @@ $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 
         </div>
 
         <!-- Footer -->
-        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
-            <button onclick="closeEditModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
-                Cancel
+        <div class="flex items-center gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
+            <button id="ev-delete-btn" onclick="deleteEvent()"
+                    class="px-4 py-2 text-sm font-medium text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors hidden">
+                Delete
             </button>
-            <button id="ev-save-btn" onclick="saveEvent()"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
-                Save
-            </button>
+            <div class="flex items-center gap-2 ml-auto">
+                <button onclick="closeEditModal()"
+                        class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
+                    Cancel
+                </button>
+                <button id="ev-save-btn" onclick="saveEvent()"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+                    Save
+                </button>
+            </div>
         </div>
     </div>
 </div>

@@ -497,6 +497,7 @@ function openNewEventModal(dateStr) {
     document.getElementById('ev-modal-title').textContent = 'New Event';
     document.getElementById('ev-save-btn').textContent    = 'Create';
     document.getElementById('ev-save-btn').disabled       = false;
+    document.getElementById('ev-delete-btn').classList.add('hidden');
 
     document.getElementById('ev-modal').classList.add('is-open');
     document.getElementById('ev-summary').focus();
@@ -512,6 +513,10 @@ function openEditModal(idx) {
 
     document.getElementById('ev-modal-title').textContent = 'Edit Event';
     document.getElementById('ev-save-btn').textContent    = 'Save';
+    const deleteBtn = document.getElementById('ev-delete-btn');
+    deleteBtn.classList.toggle('hidden', isRecurring);
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'Delete';
 
     // Populate fields
     document.getElementById('ev-summary').value     = ev.summary;
@@ -554,6 +559,35 @@ function openEditModal(idx) {
 function closeEditModal() {
     document.getElementById('ev-modal').classList.remove('is-open');
     _editingEvent = null;
+}
+
+async function deleteEvent() {
+    if (!_editingEvent) return;
+    if (!confirm(`Delete "${_editingEvent.summary}"?`)) return;
+
+    const btn = document.getElementById('ev-delete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+
+    try {
+        const res = await fetch('api.php?action=delete', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.__CSRF },
+            body:    JSON.stringify({ href: _editingEvent.href, etag: _editingEvent.etag }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        closeEditModal();
+        const evData = await apiFetch('events');
+        state.events = evData.events || [];
+        render();
+    } catch (err) {
+        alert('Delete failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+    }
 }
 
 function onAlldayChange() {
