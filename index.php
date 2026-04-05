@@ -303,6 +303,9 @@ $csrf     = csrfToken();
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                         </svg>
                     </button>
+                    <button class="ml-3 p-1 rounded-md hover:bg-gray-200 text-sm" onclick="changeMonth(0)">
+                      Today
+                    </button>
                 </div>
             </div>
 

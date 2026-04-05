@@ -308,18 +308,18 @@ function renderMonth() {
                 const idx = regEv(ev);
                 if (ev.allDay) {
                     return `
-                    <div class="text-[10px] leading-4 text-white font-medium px-1.5 rounded truncate mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                    <div class="text-[10px] md:text-[12px] leading-4 text-white font-medium px-1.5 rounded truncate mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                          style="background-color:${ev.color}"
                          title="${esc(ev.summary)}"
                          onclick="event.stopPropagation();openEditModal(${idx})">${esc(ev.summary)}</div>`;
                 }
                 return `
-                <div class="flex items-center gap-1 mt-0.5 min-w-0 cursor-pointer hover:bg-gray-100 rounded transition-colors"
+                <div class="flex flex-wrap items-center gap-1 mt-0.5 min-w-0 cursor-pointer hover:bg-gray-100 rounded transition-colors"
                      title="${esc(ev.summary)}"
                      onclick="event.stopPropagation();openEditModal(${idx})">
                     <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${ev.color}"></span>
-                    <span class="text-[10px] text-gray-400 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
-                    <span class="text-[10px] text-gray-800 truncate">${esc(ev.summary)}</span>
+                    <span class="text-[10px] md:text-[12px] text-gray-400 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
+                    <span class="text-[10px] md:text-[12px] text-gray-800 truncate">${esc(ev.summary)}</span>
                 </div>`;
             }).join('');
 
@@ -364,7 +364,13 @@ function addToDay(map, key, ev) {
 // ── Month navigation ──────────────────────────────────────────────────────────
 
 function changeMonth(delta) {
-    state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
+    if (delta === 0) {
+        state.currentMonth = new Date();
+        state.currentMonth.setDate(1);
+        state.currentMonth.setHours(0, 0, 0, 0);
+    } else {
+        state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
+    }
     renderMonth();
     updateMonthLabel();
 }
