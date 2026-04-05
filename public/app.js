@@ -109,7 +109,8 @@ function applyViewButtons(view) {
     if (view === 'list') {
         monthNav.classList.add('hidden');
         monthNav.classList.remove('flex');
-        heading.textContent = 'Upcoming Events';
+        heading.innerHTML = '<button onclick="openNewEventModal()" title="New event" '
+            + 'class="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xl font-light transition-colors leading-none">+</button>';
     } else {
         monthNav.classList.remove('hidden');
         monthNav.classList.add('flex');
@@ -292,12 +293,12 @@ function renderMonth() {
                     <div class="text-[10px] leading-4 text-white font-medium px-1.5 rounded truncate mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                          style="background-color:${ev.color}"
                          title="${esc(ev.summary)}"
-                         onclick="openEditModal(${idx})">${esc(ev.summary)}</div>`;
+                         onclick="event.stopPropagation();openEditModal(${idx})">${esc(ev.summary)}</div>`;
                 }
                 return `
                 <div class="flex items-center gap-1 mt-0.5 min-w-0 cursor-pointer hover:bg-gray-100 rounded transition-colors"
                      title="${esc(ev.summary)}"
-                     onclick="openEditModal(${idx})">
+                     onclick="event.stopPropagation();openEditModal(${idx})">
                     <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${ev.color}"></span>
                     <span class="text-[10px] text-gray-400 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
                     <span class="text-[10px] text-gray-800 truncate">${esc(ev.summary)}</span>
@@ -309,7 +310,8 @@ function renderMonth() {
                 : '';
 
             return `
-            <div class="p-1.5 overflow-hidden ${inMonth ? '' : 'bg-gray-50/60'}">
+            <div class="p-1.5 overflow-hidden cursor-pointer ${inMonth ? '' : 'bg-gray-50/60'}"
+                 onclick="openNewEventModal('${key}')">
                 <div class="flex justify-center mb-0.5">${numEl}</div>
                 ${evHtml}${moreHtml}
             </div>`;
@@ -442,6 +444,39 @@ function errorBlock(msg) {
 
 let _editingEvent = null;
 
+function openNewEventModal(dateStr) {
+    _editingEvent = null;
+
+    document.getElementById('ev-summary').value     = '';
+    document.getElementById('ev-location').value    = '';
+    document.getElementById('ev-description').value = '';
+    document.getElementById('ev-allday').checked    = false;
+
+    const sel = document.getElementById('ev-calendar');
+    sel.innerHTML = state.calendars.map((cal, i) =>
+        `<option value="${esc(cal.href)}" ${i === 0 ? 'selected' : ''}>${esc(cal.name)}</option>`
+    ).join('');
+
+    const dateValue = dateStr || localDateKey(new Date());
+    document.getElementById('ev-start-date').value = dateValue;
+    document.getElementById('ev-end-date').value   = dateValue;
+    document.getElementById('ev-start-time').value = '';
+    document.getElementById('ev-end-time').value   = '';
+
+    onAlldayChange();
+
+    document.getElementById('ev-recurring-notice').classList.add('hidden');
+    ['ev-summary','ev-calendar','ev-allday','ev-start-date','ev-start-time','ev-end-date','ev-end-time','ev-location','ev-description']
+        .forEach(id => { document.getElementById(id).disabled = false; });
+
+    document.getElementById('ev-modal-title').textContent = 'New Event';
+    document.getElementById('ev-save-btn').textContent    = 'Create';
+    document.getElementById('ev-save-btn').disabled       = false;
+
+    document.getElementById('ev-modal').classList.add('is-open');
+    document.getElementById('ev-summary').focus();
+}
+
 function openEditModal(idx) {
     const ev = evReg[idx];
     if (!ev) return;
@@ -449,6 +484,9 @@ function openEditModal(idx) {
 
     const isAllDay   = ev.allDay;
     const isRecurring = ev.isRecurring;
+
+    document.getElementById('ev-modal-title').textContent = 'Edit Event';
+    document.getElementById('ev-save-btn').textContent    = 'Save';
 
     // Populate fields
     document.getElementById('ev-summary').value     = ev.summary;
@@ -501,7 +539,8 @@ function onAlldayChange() {
 }
 
 async function saveEvent() {
-    if (!_editingEvent || _editingEvent.isRecurring) return;
+    const isNew = (_editingEvent === null);
+    if (!isNew && _editingEvent.isRecurring) return;
 
     const summary   = document.getElementById('ev-summary').value.trim();
     const allDay    = document.getElementById('ev-allday').checked;
@@ -532,25 +571,27 @@ async function saveEvent() {
 
     const btn = document.getElementById('ev-save-btn');
     btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.textContent = isNew ? 'Creating…' : 'Saving…';
 
     try {
-        const res = await fetch('api.php?action=update', {
+        const body = {
+            summary,
+            start:        startUTC,
+            end:          endUTC,
+            allDay,
+            calendarHref: document.getElementById('ev-calendar').value,
+            location:     document.getElementById('ev-location').value.trim(),
+            description:  document.getElementById('ev-description').value.trim(),
+        };
+        if (!isNew) body.href = _editingEvent.href;
+
+        const res = await fetch(`api.php?action=${isNew ? 'create' : 'update'}`, {
             method: 'POST',
             headers: {
-                'Content-Type':   'application/json',
-                'X-CSRF-Token':   window.__CSRF,
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.__CSRF,
             },
-            body: JSON.stringify({
-                href:         _editingEvent.href,
-                summary,
-                start:        startUTC,
-                end:          endUTC,
-                allDay,
-                calendarHref: document.getElementById('ev-calendar').value,
-                location:     document.getElementById('ev-location').value.trim(),
-                description:  document.getElementById('ev-description').value.trim(),
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
@@ -566,7 +607,7 @@ async function saveEvent() {
         alert('Save failed: ' + err.message);
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Save';
+        btn.textContent = isNew ? 'Create' : 'Save';
     }
 }
 

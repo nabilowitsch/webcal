@@ -314,7 +314,7 @@ $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 
 
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h2 class="text-base font-semibold text-gray-900">Edit Event</h2>
+            <h2 id="ev-modal-title" class="text-base font-semibold text-gray-900">Edit Event</h2>
             <button onclick="closeEditModal()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>

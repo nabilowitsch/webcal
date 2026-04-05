@@ -81,6 +81,29 @@ try {
         ]);
         echo json_encode(['ok' => true]);
 
+    } elseif ($action === 'create') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            exit;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data || empty($data['calendarHref'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing calendarHref']);
+            exit;
+        }
+        $href = $caldav->createEvent([
+            'summary'      => $data['summary']      ?? '',
+            'start'        => $data['start']         ?? '',
+            'end'          => $data['end']            ?? '',
+            'allDay'       => (bool) ($data['allDay'] ?? false),
+            'description'  => $data['description']   ?? '',
+            'location'     => $data['location']      ?? '',
+            'calendarHref' => $data['calendarHref'],
+        ]);
+        echo json_encode(['ok' => true, 'href' => $href]);
+
     } else {
         http_response_code(400);
         echo json_encode(['error' => 'Unknown action']);
@@ -678,6 +701,53 @@ class CalDAV
             if (in_array($key, $exdates, true)) return true;
         }
         return false;
+    }
+
+    // ── Event create ─────────────────────────────────────────────────────────
+
+    public function createEvent(array $data): string
+    {
+        $uid = strtoupper(bin2hex(random_bytes(16)));
+        $now = (new DateTime('now', new DateTimeZone('UTC')))->format('Ymd\THis\Z');
+
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//WebCal//EN',
+            'BEGIN:VEVENT',
+            "UID:{$uid}@webcal",
+            "DTSTAMP:{$now}",
+            "CREATED:{$now}",
+            "LAST-MODIFIED:{$now}",
+            $this->buildDtProp('DTSTART', $data['start'], (bool) $data['allDay']),
+            $this->buildDtProp('DTEND',   $data['end'],   (bool) $data['allDay']),
+            $this->foldIcal('SUMMARY:' . $this->escapeIcal($data['summary'])),
+        ];
+
+        if (!empty($data['location'])) {
+            $lines[] = $this->foldIcal('LOCATION:' . $this->escapeIcal($data['location']));
+        }
+        if (!empty($data['description'])) {
+            $lines[] = $this->foldIcal('DESCRIPTION:' . $this->escapeIcal($data['description']));
+        }
+
+        $lines[] = 'END:VEVENT';
+        $lines[] = 'END:VCALENDAR';
+
+        $ical    = implode("\r\n", $lines) . "\r\n";
+        $calHref = rtrim($data['calendarHref'], '/');
+        $url     = $this->resolveHref($calHref . '/' . $uid . '.ics');
+
+        $put = $this->curlRequest('PUT', $url, $ical, [
+            'Content-Type'  => 'text/calendar; charset=utf-8',
+            'If-None-Match' => '*',
+        ]);
+
+        if ($put['status'] < 200 || $put['status'] >= 300) {
+            throw new RuntimeException("Event creation failed (HTTP {$put['status']})");
+        }
+
+        return $calHref . '/' . $uid . '.ics';
     }
 
     // ── Event update ─────────────────────────────────────────────────────────
