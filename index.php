@@ -283,7 +283,7 @@ $csrf     = csrfToken();
                   </button>
                   <div class="relative flex-1 min-w-48">
                     <div class="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none">
-                        <svg width="1em" height="1em" viewBox="0 0 20 20" class="text-gray-30 w-4">
+                        <svg width="1em" height="1em" viewBox="0 0 20 20" class="text-gray-400 w-4">
                             <path d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z" stroke="currentColor" fill="none" stroke-width="2" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"></path>
                         </svg>
                     </div>
@@ -307,7 +307,7 @@ $csrf     = csrfToken();
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                         </svg>
                     </button>
-                    <button class="ml-3 p-1 rounded-md hover:bg-gray-200 text-sm" onclick="changeMonth(0)">
+                    <button class="ml-3 px-2 py-1 border border-blue-600 rounded-md hover:bg-gray-200 text-sm" onclick="changeMonth(0)">
                       Today
                     </button>
                 </div>

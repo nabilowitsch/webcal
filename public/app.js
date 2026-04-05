@@ -193,12 +193,13 @@ function renderList() {
         return;
     }
 
-    // Group by local date
+    // Group by local date, all-day events first within each day
     const groups = {};
     events.forEach(ev => {
         const key = ev.allDay ? ev.start.slice(0, 10) : localDateKey(new Date(ev.start));
         (groups[key] = groups[key] || []).push(ev);
     });
+    Object.values(groups).forEach(g => g.sort((a, b) => b.allDay - a.allDay));
 
     const rows = Object.keys(groups).sort().map(key => {
         const date    = new Date(key + 'T12:00:00');
@@ -288,6 +289,7 @@ function renderMonth() {
             addToDay(byDay, localDateKey(new Date(ev.start)), ev);
         }
     });
+    Object.values(byDay).forEach(g => g.sort((a, b) => b.allDay - a.allDay));
 
     // Group days into weeks
     const weeks = [];
@@ -324,7 +326,7 @@ function renderMonth() {
             const overflow  = dayEvs.length - shown.length;
 
             const numEl = isToday
-                ? `<span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-semibold flex items-center justify-center">${day.getDate()}</span>`
+                ? `<span class="w-6 h-6 rounded-full border border-blue-600 text-xs font-semibold flex items-center justify-center">${day.getDate()}</span>`
                 : `<span class="text-sm ${inMonth ? 'text-gray-700' : 'text-gray-300'}">${day.getDate()}</span>`;
 
             const evHtml = shown.map(ev => {
