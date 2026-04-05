@@ -254,7 +254,7 @@ $csrf     = csrfToken();
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         <!-- Topbar -->
-        <header class="flex items-center gap-3 px-4 h-14 bg-white border-b border-gray-100 shrink-0">
+        <header class="flex items-center gap-3 px-4 min-h-14 py-2 bg-white border-b border-gray-100 shrink-0 flex-wrap">
             <button onclick="openSidebar()"
                     class="lg:hidden p-2 -ml-1 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -262,8 +262,33 @@ $csrf     = csrfToken();
                 </svg>
             </button>
 
-            <div class="flex items-center gap-1 flex-1 min-w-0">
-                <h1 id="view-heading" class="text-sm font-semibold text-gray-800"></h1>
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                <!-- navigation bar for list view -->
+                <div id="list-nav" class="flex flex-wrap items-center gap-1 text-sm font-semibold text-gray-800">
+                  <button onclick="openNewEventModal()" title="New event"
+                    class="p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none whitespace-nowrap">
+                    + New Event
+                  </button>
+                  <button onclick="toggleImportMode()" title="Import .ics"
+                    class="flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                          <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z"/>
+                          <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                      </svg> 
+                      Import
+                  </button>
+                  <div class="relative flex-1 min-w-48">
+                    <div class="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none">
+                        <svg width="1em" height="1em" viewBox="0 0 20 20" class="text-gray-30 w-4">
+                            <path d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z" stroke="currentColor" fill="none" stroke-width="2" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                    </div>
+                    <input id="list-search" type="search" placeholder="Search events…"
+                          oninput="onSearchInput(this.value)"
+                          class="w-full ps-11 px-3 py-1.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+                  </div>
+                </div>
+                <!-- navigation bar for month view -->
                 <div id="month-nav" class="hidden items-center gap-1">
                     <button onclick="changeMonth(-1)"
                             class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">

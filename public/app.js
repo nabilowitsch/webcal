@@ -100,6 +100,7 @@ function setView(view) {
     _importMode   = false;
     _importEvents = [];
     _importSel    = new Set();
+    _searchQuery  = '';
     localStorage.setItem('wc_view', view);
     applyViewButtons(view);
     render();
@@ -109,33 +110,27 @@ function applyViewButtons(view) {
     const active   = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-800 shadow-xs';
     const inactive = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-500 hover:text-gray-700 transition-colors';
     const monthNav = document.getElementById('month-nav');
-    const heading  = document.getElementById('view-heading');
-    heading.className = 'flex items-center justify-center gap-1';
+    const listNav  = document.getElementById('list-nav');
+    // listNav.className = 'flex flex-wrap items-center gap-1';
 
     document.getElementById('btn-list').className  = view === 'list'  ? active : inactive;
     document.getElementById('btn-month').className = view === 'month' ? active : inactive;
 
+    const searchEl = document.getElementById('list-search');
     if (view === 'list') {
         monthNav.classList.add('hidden');
-        monthNav.classList.remove('flex');
-        heading.innerHTML = `
-            <button onclick="openNewEventModal()" title="New event" 
-              class="p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none">
-              + New Event
-            </button>
-            <button onclick="toggleImportMode()" title="Import .ics" 
-              class="flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z"/>
-                    <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
-                </svg> Import
-            </button>`;
+        listNav.classList.remove('hidden');
     } else {
         monthNav.classList.remove('hidden');
-        monthNav.classList.add('flex');
-        heading.textContent = '';
+        listNav.classList.add('hidden');
+        searchEl.value = '';
         updateMonthLabel();
     }
+}
+
+function onSearchInput(value) {
+    _searchQuery = value; // keep original case; compare case-insensitively in renders
+    render();
 }
 
 function render() {
@@ -161,15 +156,18 @@ function visibleEvents() {
 function renderList() {
     const content = document.getElementById('content');
 
-    // Only show events from today onwards
+    // Only show events from today onwards, filtered by search query
     const todayStr = localDateKey(new Date());
+    const q        = _searchQuery.toLowerCase();
     const events   = visibleEvents().filter(ev => {
         const key = ev.allDay ? ev.start.slice(0, 10) : localDateKey(new Date(ev.start));
-        return key >= todayStr;
+        if (key < todayStr) return false;
+        if (q && !ev.summary.toLowerCase().includes(q)) return false;
+        return true;
     });
 
     if (events.length === 0) {
-        content.innerHTML = emptyBlock('No upcoming events');
+        content.innerHTML = emptyBlock(q ? `No events matching "${_searchQuery}"` : 'No upcoming events');
         return;
     }
 
@@ -464,6 +462,8 @@ function errorBlock(msg) {
 
 let _editingEvent = null;
 
+let _searchQuery  = '';
+
 // ── Import state ──────────────────────────────────────────────────────────────
 let _importMode   = false;
 let _importEvents = []; // parsed events from dropped/selected .ics
@@ -705,6 +705,9 @@ function toggleImportMode() {
     _importMode   = !_importMode;
     _importEvents = [];
     _importSel    = new Set();
+    _searchQuery  = '';
+    const searchEl = document.getElementById('list-search');
+    if (searchEl) searchEl.value = '';
     applyViewButtons(state.view);
     render();
 }
@@ -743,18 +746,27 @@ function renderImport() {
         `<option value="${esc(c.href)}" ${i === 0 ? 'selected' : ''}>${esc(c.name)}</option>`
     ).join('');
 
-    const rows = _importEvents.map((ev, i) => {
-        const checked = _importSel.has(i);
+    const q = _searchQuery.toLowerCase();
+    const displayEvents = q
+        ? _importEvents.filter(ev => ev.summary.toLowerCase().includes(q))
+        : _importEvents;
+
+    const rows = displayEvents.map(ev => {
+        const checked = _importSel.has(ev.idx);
         return `
         <label class="flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors">
             <input type="checkbox" class="mt-0.5 w-4 h-4 accent-blue-600 rounded shrink-0" ${checked ? 'checked' : ''}
-                   onchange="toggleImportEvent(${i}, this.checked)">
+                   onchange="toggleImportEvent(${ev.idx}, this.checked)">
             <div class="flex-1 min-w-0">
                 <div class="text-sm text-gray-900 font-medium truncate">${esc(ev.summary)}</div>
                 <div class="text-xs text-gray-400 mt-0.5">${esc(fmtImportDate(ev))}</div>
             </div>
         </label>`;
     }).join('');
+
+    const emptyMsg = q && displayEvents.length === 0
+        ? `<div class="px-4 py-8 text-sm text-center text-gray-400">No events matching "${esc(_searchQuery)}"</div>`
+        : '';
 
     const importCount = _importSel.size;
     content.innerHTML = `
@@ -777,7 +789,7 @@ function renderImport() {
                 </button>
             </div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">${rows}</div>
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">${rows}${emptyMsg}</div>
     </div>`;
 }
 
@@ -795,7 +807,7 @@ function loadImportFile(file) {
     const reader = new FileReader();
     reader.onload = e => {
         _importEvents = parseIcsClient(e.target.result);
-        _importSel    = new Set(_importEvents.map((_, i) => i)); // pre-select all
+        _importSel    = new Set(_importEvents.map(ev => ev.idx)); // pre-select all
         if (_importEvents.length === 0) {
             alert('No events found in this file.');
             return;
@@ -897,13 +909,13 @@ function toggleImportEvent(i, checked) {
 }
 
 function selectAllImport(checked) {
-    _importSel = checked ? new Set(_importEvents.map((_, i) => i)) : new Set();
+    _importSel = checked ? new Set(_importEvents.map(ev => ev.idx)) : new Set();
     renderImport();
 }
 
 async function doImport() {
     const calHref  = document.getElementById('import-cal-select').value;
-    const selected = _importEvents.filter((_, i) => _importSel.has(i));
+    const selected = _importEvents.filter(ev => _importSel.has(ev.idx));
     if (!selected.length) return;
 
     const btn = document.getElementById('import-btn');
