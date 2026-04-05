@@ -64,14 +64,19 @@ function renderSidebar() {
     }
 
     el.innerHTML = state.calendars.map(cal => {
-        const hidden  = state.hiddenCalendars.has(cal.href);
-        const dotCls  = hidden ? 'opacity-25' : '';
-        const textCls = hidden ? 'line-through text-gray-400' : 'text-gray-700';
+        const hidden   = state.hiddenCalendars.has(cal.href);
+        const boxStyle = hidden
+            ? `border:2px solid ${cal.color};background:transparent`
+            : `border:2px solid ${cal.color};background:${cal.color}`;
+        const textCls  = hidden ? 'text-gray-400' : 'text-gray-700';
+        const check    = hidden ? '' : `<svg viewBox="0 0 10 8" fill="none" class="w-2.5 h-2 text-white shrink-0">
+                <path d="M1 3.5L3.8 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`;
         return `
-        <button onclick="toggleCalendar(${JSON.stringify(cal.href)})"
+        <button data-href="${esc(cal.href)}" onclick="toggleCalendar(this.dataset.href)"
                 class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-gray-50 transition-colors">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0 transition-opacity ${dotCls}"
-                  style="background-color:${cal.color}"></span>
+            <span class="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-colors"
+                  style="${boxStyle}">${check}</span>
             <span class="text-sm truncate flex-1 ${textCls}">${esc(cal.name)}</span>
         </button>`;
     }).join('');
