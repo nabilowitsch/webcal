@@ -1,0 +1,25 @@
+/* WebCal – custom overrides (keep minimal; prefer Tailwind utilities) */
+
+/* Thin scrollbar for sidebar and content overflow areas */
+.sidebar-scroll::-webkit-scrollbar,
+#content::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track,
+#content::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb,
+#content::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb;
+    border-radius: 2px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb,
+#content:hover::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+}
+
+/* Month grid: remove right border on last column to avoid double-border with container */
+.cal-grid > .cal-cell:nth-child(7n) {
+    border-right: none;
+}
