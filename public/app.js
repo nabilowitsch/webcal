@@ -97,6 +97,9 @@ function toggleCalendar(href) {
 
 function setView(view) {
     state.view = view;
+    _importMode   = false;
+    _importEvents = [];
+    _importSel    = new Set();
     localStorage.setItem('wc_view', view);
     applyViewButtons(view);
     render();
@@ -107,6 +110,7 @@ function applyViewButtons(view) {
     const inactive = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-500 hover:text-gray-700 transition-colors';
     const monthNav = document.getElementById('month-nav');
     const heading  = document.getElementById('view-heading');
+    heading.className = 'flex items-center justify-center gap-1';
 
     document.getElementById('btn-list').className  = view === 'list'  ? active : inactive;
     document.getElementById('btn-month').className = view === 'month' ? active : inactive;
@@ -114,8 +118,18 @@ function applyViewButtons(view) {
     if (view === 'list') {
         monthNav.classList.add('hidden');
         monthNav.classList.remove('flex');
-        heading.innerHTML = '<button onclick="openNewEventModal()" title="New event" '
-            + 'class="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xl font-light transition-colors leading-none">+</button>';
+        heading.innerHTML = `
+            <button onclick="openNewEventModal()" title="New event" 
+              class="p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none">
+              + New Event
+            </button>
+            <button onclick="toggleImportMode()" title="Import .ics" 
+              class="flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z"/>
+                    <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                </svg> Import
+            </button>`;
     } else {
         monthNav.classList.remove('hidden');
         monthNav.classList.add('flex');
@@ -126,6 +140,7 @@ function applyViewButtons(view) {
 
 function render() {
     evReg.length = 0; // reset click registry before each render
+    if (_importMode) { renderImport(); return; }
     if (state.view === 'list') renderList();
     else renderMonth();
 }
@@ -449,6 +464,11 @@ function errorBlock(msg) {
 
 let _editingEvent = null;
 
+// ── Import state ──────────────────────────────────────────────────────────────
+let _importMode   = false;
+let _importEvents = []; // parsed events from dropped/selected .ics
+let _importSel    = new Set(); // indices of selected events
+
 function openNewEventModal(dateStr) {
     _editingEvent = null;
 
@@ -617,6 +637,249 @@ async function saveEvent() {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+
+// ── ICS Import ────────────────────────────────────────────────────────────────
+
+function toggleImportMode() {
+    _importMode   = !_importMode;
+    _importEvents = [];
+    _importSel    = new Set();
+    applyViewButtons(state.view);
+    render();
+}
+
+function renderImport() {
+    const content = document.getElementById('content');
+
+    if (_importEvents.length === 0) {
+        // ── Drop zone ──
+        content.innerHTML = `
+        <div class="mx-4 lg:mx-6 my-4 lg:my-6">
+            <div id="import-dropzone"
+                 class="border-2 border-dashed border-gray-200 rounded-2xl p-16 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors text-center"
+                 onclick="document.getElementById('ics-file-input').click()"
+                 ondragover="event.preventDefault();this.classList.add('!border-blue-400','bg-blue-50/30')"
+                 ondragleave="this.classList.remove('!border-blue-400','bg-blue-50/30')"
+                 ondrop="event.preventDefault();this.classList.remove('!border-blue-400','bg-blue-50/30');handleImportDrop(event)">
+                <svg class="w-10 h-10 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z"/>
+                    <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                </svg>
+                <div>
+                    <p class="text-sm text-gray-600">Drop an <strong>.ics</strong> file here, or <span class="text-blue-600 font-medium">browse</span></p>
+                    <p class="text-xs text-gray-400 mt-1">iCalendar files only</p>
+                </div>
+            </div>
+            <input type="file" id="ics-file-input" accept=".ics,text/calendar" class="hidden"
+                   onchange="handleImportFileInput(this)">
+        </div>`;
+        return;
+    }
+
+    // ── Preview ──
+    const allSelected = _importSel.size === _importEvents.length;
+    const calOptions  = state.calendars.map((c, i) =>
+        `<option value="${esc(c.href)}" ${i === 0 ? 'selected' : ''}>${esc(c.name)}</option>`
+    ).join('');
+
+    const rows = _importEvents.map((ev, i) => {
+        const checked = _importSel.has(i);
+        return `
+        <label class="flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors">
+            <input type="checkbox" class="mt-0.5 w-4 h-4 accent-blue-600 rounded shrink-0" ${checked ? 'checked' : ''}
+                   onchange="toggleImportEvent(${i}, this.checked)">
+            <div class="flex-1 min-w-0">
+                <div class="text-sm text-gray-900 font-medium truncate">${esc(ev.summary)}</div>
+                <div class="text-xs text-gray-400 mt-0.5">${esc(fmtImportDate(ev))}</div>
+            </div>
+        </label>`;
+    }).join('');
+
+    const importCount = _importSel.size;
+    content.innerHTML = `
+    <div class="mx-4 lg:mx-6 my-4 lg:my-6 flex flex-col gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
+            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" class="w-4 h-4 accent-blue-600 rounded" ${allSelected ? 'checked' : ''}
+                       onchange="selectAllImport(this.checked)">
+                <span>Select all (${_importEvents.length})</span>
+            </label>
+            <div class="flex items-center gap-2 ml-auto flex-wrap">
+                <label class="text-sm text-gray-600">Import to:</label>
+                <select id="import-cal-select"
+                        class="px-3 py-1.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    ${calOptions}
+                </select>
+                <button onclick="doImport()" id="import-btn" ${importCount === 0 ? 'disabled' : ''}
+                        class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors">
+                    Import${importCount > 0 ? ' ' + importCount : ''} event${importCount !== 1 ? 's' : ''}
+                </button>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">${rows}</div>
+    </div>`;
+}
+
+function handleImportDrop(event) {
+    const file = event.dataTransfer.files[0];
+    if (file) loadImportFile(file);
+}
+
+function handleImportFileInput(input) {
+    const file = input.files[0];
+    if (file) loadImportFile(file);
+}
+
+function loadImportFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        _importEvents = parseIcsClient(e.target.result);
+        _importSel    = new Set(_importEvents.map((_, i) => i)); // pre-select all
+        if (_importEvents.length === 0) {
+            alert('No events found in this file.');
+            return;
+        }
+        renderImport();
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+function parseIcsClient(text) {
+    text = text.replace(/\r?\n[ \t]/g, ''); // unfold
+    const lines  = text.split(/\r?\n/);
+    const events = [];
+    let cur      = null;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+        if (!line) continue;
+        if (/^BEGIN:VEVENT$/i.test(line)) { cur = {}; continue; }
+        if (/^END:VEVENT$/i.test(line) && cur) { events.push(cur); cur = null; continue; }
+        if (!cur) continue;
+
+        const colon = line.indexOf(':');
+        if (colon < 0) continue;
+
+        const propFull = line.slice(0, colon);
+        const value    = line.slice(colon + 1);
+        const segs     = propFull.split(';');
+        const propName = segs[0].toUpperCase();
+        const params   = {};
+        for (let i = 1; i < segs.length; i++) {
+            const eq = segs[i].indexOf('=');
+            if (eq >= 0) params[segs[i].slice(0, eq).toUpperCase()] = segs[i].slice(eq + 1);
+        }
+        cur[propName] = { value, params };
+    }
+
+    return events.map((raw, idx) => {
+        const dtstartRaw = raw.DTSTART?.value || '';
+        const allDay     = dtstartRaw.length === 8; // DATE vs DATETIME
+        const start      = parseIcsDateClient(dtstartRaw);
+        if (!start) return null;
+
+        let end = raw.DTEND ? parseIcsDateClient(raw.DTEND.value) : null;
+        if (!end) end = new Date(start.getTime() + (allDay ? 86400000 : 3600000));
+
+        return {
+            idx,
+            summary:     unescapeIcal(raw.SUMMARY?.value     || 'Untitled'),
+            description: unescapeIcal(raw.DESCRIPTION?.value || ''),
+            location:    unescapeIcal(raw.LOCATION?.value    || ''),
+            allDay,
+            start,
+            end,
+        };
+    }).filter(Boolean);
+}
+
+function parseIcsDateClient(value) {
+    if (!value) return null;
+    value = value.trim();
+    if (/^\d{8}$/.test(value)) {
+        // All-day DATE → UTC midnight
+        return new Date(Date.UTC(+value.slice(0,4), +value.slice(4,6)-1, +value.slice(6,8)));
+    }
+    if (/^\d{8}T\d{6}Z$/i.test(value)) {
+        // UTC datetime
+        return new Date(Date.UTC(+value.slice(0,4), +value.slice(4,6)-1, +value.slice(6,8),
+                                 +value.slice(9,11), +value.slice(11,13), +value.slice(13,15)));
+    }
+    if (/^\d{8}T\d{6}$/i.test(value)) {
+        // Local datetime — treat as local (VTIMEZONE parsing not implemented)
+        return new Date(+value.slice(0,4), +value.slice(4,6)-1, +value.slice(6,8),
+                        +value.slice(9,11), +value.slice(11,13), +value.slice(13,15));
+    }
+    return null;
+}
+
+function unescapeIcal(v) {
+    return v.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\[nN]/g, '\n').replace(/\\\\/g, '\\').trim();
+}
+
+function fmtImportDate(ev) {
+    const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+    if (ev.allDay) {
+        const s = ev.start.toLocaleDateString(undefined, opts);
+        const endExcl = new Date(ev.end.getTime() - 86400000);
+        const e = endExcl.toLocaleDateString(undefined, opts);
+        return s === e ? s : `${s} – ${e}`;
+    }
+    return ev.start.toLocaleDateString(undefined, {
+        ...opts, hour: '2-digit', minute: '2-digit',
+    }) + (ev.end ? ` – ${ev.end.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : '');
+}
+
+function toggleImportEvent(i, checked) {
+    if (checked) _importSel.add(i); else _importSel.delete(i);
+    renderImport();
+}
+
+function selectAllImport(checked) {
+    _importSel = checked ? new Set(_importEvents.map((_, i) => i)) : new Set();
+    renderImport();
+}
+
+async function doImport() {
+    const calHref  = document.getElementById('import-cal-select').value;
+    const selected = _importEvents.filter((_, i) => _importSel.has(i));
+    if (!selected.length) return;
+
+    const btn = document.getElementById('import-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+
+    let succeeded = 0, failed = 0;
+    for (const ev of selected) {
+        try {
+            const startIso = ev.start.toISOString();
+            const endIso   = ev.end.toISOString();
+            const res = await fetch('api.php?action=create', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.__CSRF },
+                body:    JSON.stringify({
+                    summary:     ev.summary,
+                    start:       startIso,
+                    end:         endIso,
+                    allDay:      ev.allDay,
+                    calendarHref: calHref,
+                    description: ev.description,
+                    location:    ev.location,
+                }),
+            });
+            if (res.ok) succeeded++; else failed++;
+        } catch { failed++; }
+    }
+
+    if (failed > 0) alert(`Imported ${succeeded} event(s). ${failed} failed — check the console.`);
+
+    _importMode   = false;
+    _importEvents = [];
+    _importSel    = new Set();
+    applyViewButtons(state.view);
+    const evData = await apiFetch('events');
+    state.events = evData.events || [];
+    render();
+}
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', init);
