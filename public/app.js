@@ -189,7 +189,7 @@ function renderList() {
                             .replace(/\.$/, '').toUpperCase() + '.';
         const weekday = date.toLocaleDateString(undefined, { weekday: 'short' })
                             .replace(/\.$/, '').toUpperCase();
-        const dayLabel = `${month}, ${weekday}`;
+        const dayLabel = `<strong class='text-gray-700'>${month}</strong>, ${weekday}`;
 
         const numCls   = isToday ? 'text-blue-600 font-semibold' : 'text-gray-800 font-light';
         const labelCls = isToday ? 'text-blue-500' : 'text-gray-400';
@@ -637,6 +637,67 @@ async function saveEvent() {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+
+// ── Calendar creation modal ───────────────────────────────────────────────────
+
+function openNewCalendarModal() {
+    document.getElementById('cal-name').value        = '';
+    document.getElementById('cal-id').value          = '';
+    document.getElementById('cal-save-btn').disabled = false;
+    document.getElementById('cal-save-btn').textContent = 'Create';
+    document.getElementById('cal-modal').classList.add('is-open');
+    document.getElementById('cal-name').focus();
+}
+
+function closeCalendarModal() {
+    document.getElementById('cal-modal').classList.remove('is-open');
+}
+
+function autoFillCalId(name) {
+    document.getElementById('cal-id').value = name
+        .toLowerCase()
+        .replace(/[äå]/g, 'a').replace(/[öø]/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+async function saveCalendar() {
+    const name = document.getElementById('cal-name').value.trim();
+    const id   = document.getElementById('cal-id').value.trim();
+
+    if (!name || !id) {
+        alert('Please fill in both fields.');
+        return;
+    }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
+        alert('Calendar ID may only contain lowercase letters, numbers and hyphens, and must start with a letter or number.');
+        return;
+    }
+
+    const btn = document.getElementById('cal-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    try {
+        const res = await fetch('api.php?action=create-calendar', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.__CSRF },
+            body:    JSON.stringify({ id, displayName: name }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        closeCalendarModal();
+        const calData = await apiFetch('calendars');
+        state.calendars = calData.calendars || [];
+        renderSidebar();
+    } catch (err) {
+        alert('Failed to create calendar: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create';
+    }
+}
 
 // ── ICS Import ────────────────────────────────────────────────────────────────
 

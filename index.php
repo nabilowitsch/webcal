@@ -227,7 +227,15 @@ $csrf     = csrfToken();
 
         <!-- Calendar list -->
         <div class="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
-            <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase px-3 mb-2">Calendars</p>
+            <div class="flex items-center justify-between px-3 mb-2">
+                <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Calendars</p>
+                <button onclick="openNewCalendarModal()" title="Add calendar"
+                        class="p-1 text-gray-400 hover:bg-gray-200 transition-colors p-0.5 rounded">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
+            </div>
             <div id="calendar-list">
                 <div class="px-3 py-2 text-sm text-gray-400">Loading…</div>
             </div>
@@ -402,6 +410,51 @@ $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 
             <button id="ev-save-btn" onclick="saveEvent()"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
                 Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── New calendar modal ──────────────────────────────────────────────────── -->
+<div id="cal-modal"
+     onclick="if(event.target===this)closeCalendarModal()"
+     class="fixed inset-0 z-50 items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col"
+         onclick="event.stopPropagation()">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <h2 class="text-base font-semibold text-gray-900">New Calendar</h2>
+            <button onclick="closeCalendarModal()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="px-6 py-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Display Name</label>
+                <input id="cal-name" type="text" oninput="autoFillCalId(this.value)"
+                       class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                       placeholder="My Calendar">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Calendar ID</label>
+                <input id="cal-id" type="text"
+                       class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                       placeholder="my-calendar">
+                <p class="text-xs text-gray-400 mt-1.5">Used in the URL — lowercase letters, numbers and hyphens only.</p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
+            <button onclick="closeCalendarModal()"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
+                Cancel
+            </button>
+            <button id="cal-save-btn" onclick="saveCalendar()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+                Create
             </button>
         </div>
     </div>

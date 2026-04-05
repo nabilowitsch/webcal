@@ -104,6 +104,21 @@ try {
         ]);
         echo json_encode(['ok' => true, 'href' => $href]);
 
+    } elseif ($action === 'create-calendar') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            exit;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data || empty($data['id']) || empty($data['displayName'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing id or displayName']);
+            exit;
+        }
+        $href = $caldav->createCalendar($data['id'], $data['displayName']);
+        echo json_encode(['ok' => true, 'href' => $href]);
+
     } else {
         http_response_code(400);
         echo json_encode(['error' => 'Unknown action']);
@@ -701,6 +716,38 @@ class CalDAV
             if (in_array($key, $exdates, true)) return true;
         }
         return false;
+    }
+
+    // ── Calendar create ──────────────────────────────────────────────────────
+
+    public function createCalendar(string $id, string $displayName): string
+    {
+        $homeHref = $this->discoverCalendarHome();
+        $calPath  = rtrim($homeHref, '/') . '/' . rawurlencode($id) . '/';
+        $url      = $this->resolveHref($calPath);
+
+        $xml = '<?xml version="1.0" encoding="utf-8"?>
+<c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+    <d:set>
+        <d:prop>
+            <d:displayname>' . htmlspecialchars($displayName, ENT_XML1, 'UTF-8') . '</d:displayname>
+            <c:supported-calendar-component-set>
+                <c:comp name="VEVENT"/>
+                <c:comp name="VJOURNAL"/>
+            </c:supported-calendar-component-set>
+        </d:prop>
+    </d:set>
+</c:mkcalendar>';
+
+        $result = $this->curlRequest('MKCALENDAR', $url, $xml, [
+            'Content-Type' => 'application/xml; charset=utf-8',
+        ]);
+
+        if ($result['status'] < 200 || $result['status'] >= 300) {
+            throw new RuntimeException("Calendar creation failed (HTTP {$result['status']})");
+        }
+
+        return $calPath;
     }
 
     // ── Event create ─────────────────────────────────────────────────────────
