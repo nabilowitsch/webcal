@@ -58,6 +58,29 @@ try {
 
         echo json_encode(['events' => $allEvents]);
 
+    } elseif ($action === 'update') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            exit;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data || empty($data['href'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing href']);
+            exit;
+        }
+        $caldav->updateEvent($data['href'], [
+            'summary'      => $data['summary']      ?? '',
+            'start'        => $data['start']         ?? '',
+            'end'          => $data['end']            ?? '',
+            'allDay'       => (bool) ($data['allDay'] ?? false),
+            'description'  => $data['description']   ?? '',
+            'location'     => $data['location']      ?? '',
+            'calendarHref' => $data['calendarHref']  ?? '',
+        ]);
+        echo json_encode(['ok' => true]);
+
     } else {
         http_response_code(400);
         echo json_encode(['error' => 'Unknown action']);
@@ -117,7 +140,14 @@ class CalDAV
         }
 
         $ch = curl_init($url);
-        $headers = ['Content-Type: application/xml; charset=utf-8'];
+
+        // Build headers; default Content-Type only when there's a body and caller
+        // hasn't supplied their own.
+        $extraKeys = array_map('strtolower', array_keys($extraHeaders));
+        $headers   = [];
+        if ($body !== '' && !in_array('content-type', $extraKeys, true)) {
+            $headers[] = 'Content-Type: application/xml; charset=utf-8';
+        }
         foreach ($extraHeaders as $k => $v) {
             $headers[] = "$k: $v";
         }
@@ -132,22 +162,33 @@ class CalDAV
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_HEADER         => true,   // include response headers in output
         ]);
 
         if ($body !== '') {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
 
-        $response = curl_exec($ch);
-        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
+        $raw     = curl_exec($ch);
+        $status  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $hdrSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $error   = curl_error($ch);
         curl_close($ch);
 
         if ($error) {
             throw new RuntimeException("cURL error: $error");
         }
 
-        return ['status' => $status, 'body' => (string) $response];
+        $rawStr  = (string) $raw;
+        $respHdr = substr($rawStr, 0, $hdrSize);
+        $respBody = substr($rawStr, $hdrSize);
+
+        $etag = null;
+        if (preg_match('/^ETag:\s*("?[^"\r\n]+"?)/mi', $respHdr, $m)) {
+            $etag = trim($m[1]);
+        }
+
+        return ['status' => $status, 'body' => $respBody, 'etag' => $etag];
     }
 
     private function propfind(string $url, string $body, int $depth = 0): DOMDocument
@@ -325,10 +366,17 @@ class CalDAV
         $xp  = $this->xpath($dom);
 
         $events = [];
-        foreach ($xp->query('//c:calendar-data') as $node) {
-            $vevents = $this->parseICalendar($node->textContent);
-            foreach ($vevents as $raw) {
-                $result = $this->processEvent($raw, $calendarHref, $color, $start, $end);
+        foreach ($xp->query('//d:response') as $resp) {
+            $hrefNode = $xp->query('d:href', $resp)->item(0);
+            $etagNode = $xp->query('.//d:getetag', $resp)->item(0);
+            $calNode  = $xp->query('.//c:calendar-data', $resp)->item(0);
+            if (!$calNode || !$hrefNode) continue;
+
+            $eventHref = trim($hrefNode->textContent);
+            $etag      = $etagNode ? trim($etagNode->textContent, '" ') : '';
+
+            foreach ($this->parseICalendar($calNode->textContent) as $raw) {
+                $result = $this->processEvent($raw, $eventHref, $etag, $calendarHref, $color, $start, $end);
                 if ($result) {
                     $events = array_merge($events, $result);
                 }
@@ -424,6 +472,8 @@ class CalDAV
 
     private function processEvent(
         array    $raw,
+        string   $eventHref,
+        string   $etag,
         string   $calHref,
         string   $color,
         DateTime $rangeStart,
@@ -468,6 +518,8 @@ class CalDAV
             }
         }
 
+        $isRecurring = isset($raw['RRULE']);
+
         $base = [
             'uid'          => trim($raw['UID']['value'] ?? uniqid()),
             'summary'      => $this->unescape($raw['SUMMARY']['value'] ?? 'Untitled'),
@@ -476,6 +528,9 @@ class CalDAV
             'allDay'       => $allDay,
             'calendarHref' => $calHref,
             'color'        => $color,
+            'href'         => $eventHref,
+            'etag'         => $etag,
+            'isRecurring'  => $isRecurring,
             'dtstart'      => $dtstart,
             'dtend'        => $dtend,
             'rrule'        => $raw['RRULE']['value'] ?? null,
@@ -495,6 +550,9 @@ class CalDAV
                 'allDay'       => $inst['allDay'],
                 'calendarHref' => $inst['calendarHref'],
                 'color'        => $inst['color'],
+                'href'         => $inst['href'],
+                'etag'         => $inst['etag'],
+                'isRecurring'  => $inst['isRecurring'],
             ];
         }, $instances);
     }
@@ -620,5 +678,151 @@ class CalDAV
             if (in_array($key, $exdates, true)) return true;
         }
         return false;
+    }
+
+    // ── Event update ─────────────────────────────────────────────────────────
+
+    public function updateEvent(string $href, array $data): void
+    {
+        $url = $this->resolveHref($href);
+
+        // Fetch current content and fresh ETag
+        $get = $this->curlRequest('GET', $url, '', ['Accept' => 'text/calendar']);
+        if ($get['status'] >= 400) {
+            throw new RuntimeException("Cannot fetch event for update (HTTP {$get['status']})");
+        }
+
+        $updated = $this->updateICalendar($get['body'], $data);
+        $ifMatch = $get['etag'] ?? '*';
+
+        $newCalHref = $data['calendarHref'] ?? '';
+        $moving     = $newCalHref !== '' && rtrim($newCalHref, '/') !== rtrim(dirname($href), '/');
+
+        if ($moving) {
+            // PUT to new calendar, then DELETE from old
+            $filename = basename($href);
+            $newUrl   = $this->resolveHref(rtrim($newCalHref, '/') . '/' . $filename);
+
+            $put = $this->curlRequest('PUT', $newUrl, $updated, [
+                'Content-Type' => 'text/calendar; charset=utf-8',
+            ]);
+            if ($put['status'] < 200 || $put['status'] >= 300) {
+                throw new RuntimeException("Move (PUT) failed (HTTP {$put['status']})");
+            }
+
+            $del = $this->curlRequest('DELETE', $url, '', ['If-Match' => $ifMatch]);
+            if ($del['status'] >= 400) {
+                throw new RuntimeException("Move (DELETE) failed (HTTP {$del['status']})");
+            }
+        } else {
+            $put = $this->curlRequest('PUT', $url, $updated, [
+                'Content-Type' => 'text/calendar; charset=utf-8',
+                'If-Match'     => $ifMatch,
+            ]);
+            if ($put['status'] < 200 || $put['status'] >= 300) {
+                throw new RuntimeException("Event update failed (HTTP {$put['status']})");
+            }
+        }
+    }
+
+    private function updateICalendar(string $ical, array $data): string
+    {
+        // Unfold continuation lines then split
+        $ical  = preg_replace('/\r?\n[ \t]/', '', $ical);
+        $lines = preg_split('/\r?\n/', $ical);
+
+        $now   = (new DateTime('now', new DateTimeZone('UTC')))->format('Ymd\THis\Z');
+
+        $replace = [
+            'SUMMARY'       => $this->foldIcal('SUMMARY:'       . $this->escapeIcal($data['summary'])),
+            'DTSTART'       => $this->buildDtProp('DTSTART', $data['start'], (bool) $data['allDay']),
+            'DTEND'         => $this->buildDtProp('DTEND',   $data['end'],   (bool) $data['allDay']),
+            'DTSTAMP'       => "DTSTAMP:$now",
+            'LAST-MODIFIED' => "LAST-MODIFIED:$now",
+            'DESCRIPTION'   => ($data['description'] ?? '') !== ''
+                                ? $this->foldIcal('DESCRIPTION:' . $this->escapeIcal($data['description']))
+                                : '',  // empty = remove property
+            'LOCATION'      => ($data['location'] ?? '') !== ''
+                                ? $this->foldIcal('LOCATION:'    . $this->escapeIcal($data['location']))
+                                : '',
+        ];
+
+        $inEvent = false;
+        $written = [];
+        $out     = [];
+
+        foreach ($lines as $line) {
+            $t = rtrim($line);
+            if ($t === '') continue;
+
+            if (strcasecmp($t, 'BEGIN:VEVENT') === 0) {
+                $inEvent = true;
+                $out[]   = 'BEGIN:VEVENT';
+                continue;
+            }
+
+            if (strcasecmp($t, 'END:VEVENT') === 0) {
+                // Write any replacements not yet encountered in the original
+                foreach ($replace as $prop => $val) {
+                    if (!in_array($prop, $written, true) && $val !== '') {
+                        $out[] = $val;
+                    }
+                }
+                $inEvent = false;
+                $out[]   = 'END:VEVENT';
+                continue;
+            }
+
+            if (!$inEvent) {
+                $out[] = $line;
+                continue;
+            }
+
+            // Determine property name (stops at ; or :)
+            $colon   = strpos($t, ':');
+            if ($colon === false) { $out[] = $line; continue; }
+            $semi    = strpos($t, ';');
+            $end     = ($semi !== false && $semi < $colon) ? $semi : $colon;
+            $prop    = strtoupper(substr($t, 0, $end));
+
+            if (array_key_exists($prop, $replace) && !in_array($prop, $written, true)) {
+                $written[] = $prop;
+                if ($replace[$prop] !== '') {
+                    $out[] = $replace[$prop];   // use updated value
+                }
+                // else: property cleared — omit it entirely
+            } else {
+                $out[] = $line;                 // keep original
+            }
+        }
+
+        return implode("\r\n", $out) . "\r\n";
+    }
+
+    private function buildDtProp(string $prop, string $isoUtc, bool $allDay): string
+    {
+        $dt = new DateTime($isoUtc, new DateTimeZone('UTC'));
+        return $allDay
+            ? "{$prop};VALUE=DATE:" . $dt->format('Ymd')
+            : "{$prop}:"           . $dt->format('Ymd\THis\Z');
+    }
+
+    private function foldIcal(string $line): string
+    {
+        $out = '';
+        while (strlen($line) > 75) {
+            $out  .= substr($line, 0, 75) . "\r\n ";
+            $line  = substr($line, 75);
+        }
+        return $out . $line;
+    }
+
+    private function escapeIcal(string $v): string
+    {
+        $v = str_replace('\\', '\\\\', $v);
+        $v = str_replace("\n", '\\n',  $v);
+        $v = str_replace(';',  '\\;',  $v);
+        $v = str_replace(',',  '\\,',  $v);
+        return $v;
     }
 }

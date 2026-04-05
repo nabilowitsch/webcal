@@ -2,6 +2,9 @@
 
 const WEEK_START = window.__WEEK_START ?? 1; // 0=Sun, 1=Mon, …, 6=Sat
 
+// Registry of rendered events for click handling (reset on each render)
+const evReg = [];
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
@@ -116,8 +119,14 @@ function applyViewButtons(view) {
 }
 
 function render() {
+    evReg.length = 0; // reset click registry before each render
     if (state.view === 'list') renderList();
     else renderMonth();
+}
+
+function regEv(ev) {
+    evReg.push(ev);
+    return evReg.length - 1;
 }
 
 // ── Filtered events ───────────────────────────────────────────────────────────
@@ -165,6 +174,7 @@ function renderList() {
         const labelCls = isToday ? 'text-blue-500' : 'text-gray-400';
 
         const items = groups[key].map(ev => {
+            const idx     = regEv(ev);
             const timeStr = ev.allDay
                 ? 'Ganztägig'
                 : `${fmtTime(new Date(ev.start))} – ${fmtTime(new Date(ev.end))}`;
@@ -172,7 +182,8 @@ function renderList() {
                 ? `<div class="text-xs text-gray-400 truncate mt-0.5 pl-5">${esc(ev.location)}</div>`
                 : '';
             return `
-            <div class="mb-2 last:mb-0">
+            <div class="mb-2 last:mb-0 -mx-1 px-1 py-0.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                 onclick="openEditModal(${idx})">
                 <div class="flex gap-2.5 min-w-0">
                     <span class="w-2.5 h-2.5 mt-1.5 rounded-full shrink-0" style="background-color:${ev.color}"></span>
                     <span class="text-sm text-gray-400 md:w-32 w-16 shrink-0">${esc(timeStr)}</span>
@@ -275,14 +286,18 @@ function renderMonth() {
                 : `<span class="text-sm ${inMonth ? 'text-gray-700' : 'text-gray-300'}">${day.getDate()}</span>`;
 
             const evHtml = shown.map(ev => {
+                const idx = regEv(ev);
                 if (ev.allDay) {
                     return `
-                    <div class="text-[10px] leading-4 text-white font-medium px-1.5 rounded truncate mt-0.5"
+                    <div class="text-[10px] leading-4 text-white font-medium px-1.5 rounded truncate mt-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                          style="background-color:${ev.color}"
-                         title="${esc(ev.summary)}">${esc(ev.summary)}</div>`;
+                         title="${esc(ev.summary)}"
+                         onclick="openEditModal(${idx})">${esc(ev.summary)}</div>`;
                 }
                 return `
-                <div class="flex items-center gap-1 mt-0.5 min-w-0" title="${esc(ev.summary)}">
+                <div class="flex items-center gap-1 mt-0.5 min-w-0 cursor-pointer hover:bg-gray-100 rounded transition-colors"
+                     title="${esc(ev.summary)}"
+                     onclick="openEditModal(${idx})">
                     <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${ev.color}"></span>
                     <span class="text-[10px] text-gray-400 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
                     <span class="text-[10px] text-gray-800 truncate">${esc(ev.summary)}</span>
@@ -422,6 +437,140 @@ function errorBlock(msg) {
         </button>
     </div>`;
 }
+
+// ── Edit modal ────────────────────────────────────────────────────────────────
+
+let _editingEvent = null;
+
+function openEditModal(idx) {
+    const ev = evReg[idx];
+    if (!ev) return;
+    _editingEvent = ev;
+
+    const isAllDay   = ev.allDay;
+    const isRecurring = ev.isRecurring;
+
+    // Populate fields
+    document.getElementById('ev-summary').value     = ev.summary;
+    document.getElementById('ev-location').value    = ev.location;
+    document.getElementById('ev-description').value = ev.description;
+    document.getElementById('ev-allday').checked    = isAllDay;
+
+    // Populate calendar select
+    const sel = document.getElementById('ev-calendar');
+    sel.innerHTML = state.calendars.map(cal =>
+        `<option value="${esc(cal.href)}" ${cal.href === ev.calendarHref ? 'selected' : ''}>${esc(cal.name)}</option>`
+    ).join('');
+
+    const start = new Date(ev.start);
+    document.getElementById('ev-start-date').value = localDateKey(start);
+    document.getElementById('ev-start-time').value = isAllDay ? '' : `${pad2(start.getHours())}:${pad2(start.getMinutes())}`;
+
+    // All-day DTEND is exclusive → show last inclusive day in the form
+    const end = new Date(ev.end);
+    if (isAllDay) end.setUTCDate(end.getUTCDate() - 1);
+    document.getElementById('ev-end-date').value = isAllDay
+        ? end.toISOString().slice(0, 10)
+        : localDateKey(new Date(ev.end));
+    document.getElementById('ev-end-time').value = isAllDay ? '' : `${pad2(new Date(ev.end).getHours())}:${pad2(new Date(ev.end).getMinutes())}`;
+
+    onAlldayChange();
+
+    // Recurring: show notice, disable save
+    document.getElementById('ev-recurring-notice').classList.toggle('hidden', !isRecurring);
+    document.getElementById('ev-save-btn').disabled = isRecurring;
+
+    // Disable form fields for recurring events
+    ['ev-summary','ev-calendar','ev-allday','ev-start-date','ev-start-time','ev-end-date','ev-end-time','ev-location','ev-description']
+        .forEach(id => { document.getElementById(id).disabled = isRecurring; });
+
+    document.getElementById('ev-modal').classList.add('is-open');
+    document.getElementById('ev-summary').focus();
+}
+
+function closeEditModal() {
+    document.getElementById('ev-modal').classList.remove('is-open');
+    _editingEvent = null;
+}
+
+function onAlldayChange() {
+    const allDay = document.getElementById('ev-allday').checked;
+    document.querySelectorAll('.ev-time').forEach(el => {
+        el.style.display = allDay ? 'none' : '';
+    });
+}
+
+async function saveEvent() {
+    if (!_editingEvent || _editingEvent.isRecurring) return;
+
+    const summary   = document.getElementById('ev-summary').value.trim();
+    const allDay    = document.getElementById('ev-allday').checked;
+    const startDate = document.getElementById('ev-start-date').value;
+    const startTime = document.getElementById('ev-start-time').value || '00:00';
+    const endDate   = document.getElementById('ev-end-date').value;
+    const endTime   = document.getElementById('ev-end-time').value   || '00:00';
+
+    if (!summary || !startDate || !endDate) {
+        alert('Please fill in Title, Start, and End.');
+        return;
+    }
+
+    let startUTC, endUTC;
+    if (allDay) {
+        startUTC = new Date(startDate + 'T00:00:00Z').toISOString();
+        const endDt = new Date(endDate + 'T00:00:00Z');
+        endDt.setUTCDate(endDt.getUTCDate() + 1); // DTEND is exclusive
+        endUTC = endDt.toISOString();
+    } else {
+        startUTC = new Date(`${startDate}T${startTime}:00`).toISOString();
+        endUTC   = new Date(`${endDate}T${endTime}:00`).toISOString();
+        if (endUTC <= startUTC) {
+            alert('End must be after start.');
+            return;
+        }
+    }
+
+    const btn = document.getElementById('ev-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+        const res = await fetch('api.php?action=update', {
+            method: 'POST',
+            headers: {
+                'Content-Type':   'application/json',
+                'X-CSRF-Token':   window.__CSRF,
+            },
+            body: JSON.stringify({
+                href:         _editingEvent.href,
+                summary,
+                start:        startUTC,
+                end:          endUTC,
+                allDay,
+                calendarHref: document.getElementById('ev-calendar').value,
+                location:     document.getElementById('ev-location').value.trim(),
+                description:  document.getElementById('ev-description').value.trim(),
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+
+        closeEditModal();
+        const evData = await apiFetch('events');
+        state.events = evData.events || [];
+        render();
+    } catch (err) {
+        alert('Save failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', init);

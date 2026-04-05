@@ -305,6 +305,108 @@ $csrf     = csrfToken();
 $weekStartMap = ['sunday'=>0,'monday'=>1,'tuesday'=>2,'wednesday'=>3,'thursday'=>4,'friday'=>5,'saturday'=>6];
 $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 1;
 ?>
+<!-- ── Edit modal ──────────────────────────────────────────────────────────── -->
+<div id="ev-modal"
+     onclick="if(event.target===this)closeEditModal()"
+     class="fixed inset-0 z-50 items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]"
+         onclick="event.stopPropagation()">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <h2 class="text-base font-semibold text-gray-900">Edit Event</h2>
+            <button onclick="closeEditModal()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+            <!-- Recurring notice -->
+            <div id="ev-recurring-notice"
+                 class="hidden p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm text-amber-700">
+                Recurring events cannot be edited.
+            </div>
+
+            <!-- Title -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+                <input id="ev-summary" type="text"
+                       class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                       placeholder="Event title">
+            </div>
+
+            <!-- Calendar -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Calendar</label>
+                <select id="ev-calendar"
+                        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow bg-white">
+                </select>
+            </div>
+
+            <!-- All-day toggle -->
+            <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                <input id="ev-allday" type="checkbox" onchange="onAlldayChange()"
+                       class="w-4 h-4 accent-blue-600 rounded">
+                <span class="text-sm font-medium text-gray-700">All day</span>
+            </label>
+
+            <!-- Start -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Start</label>
+                <div class="flex gap-2">
+                    <input id="ev-start-date" type="date"
+                           class="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                    <input id="ev-start-time" type="time"
+                           class="ev-time w-28 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                </div>
+            </div>
+
+            <!-- End -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">End</label>
+                <div class="flex gap-2">
+                    <input id="ev-end-date" type="date"
+                           class="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                    <input id="ev-end-time" type="time"
+                           class="ev-time w-28 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                </div>
+            </div>
+
+            <!-- Location -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
+                <input id="ev-location" type="text"
+                       class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                       placeholder="Location (optional)">
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+                <textarea id="ev-description" rows="3"
+                          class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-none"
+                          placeholder="Description (optional)"></textarea>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
+            <button onclick="closeEditModal()"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
+                Cancel
+            </button>
+            <button id="ev-save-btn" onclick="saveEvent()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>window.__CSRF = <?= json_encode($csrf) ?>; window.__WEEK_START = <?= $weekStartDay ?>;</script>
 <script src="public/app.js"></script>
 <?php endif; ?>
