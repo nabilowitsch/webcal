@@ -5,24 +5,27 @@ header('Content-Type: application/json; charset=utf-8');
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
-if (!isset($_SESSION['user'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+$action = $_GET['action'] ?? '';
+$readOnlyActions = ['calendars', 'events'];
 
-$reqCsrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-if (empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $reqCsrf)) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Invalid CSRF token']);
-    exit;
+if (!in_array($action, $readOnlyActions, true)) {
+    if (!isset($_SESSION['user'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+    $reqCsrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $reqCsrf)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid CSRF token']);
+        exit;
+    }
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
 $config      = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
 $caldavCfg   = $config['caldav'];
-$action      = $_GET['action'] ?? '';
 
 // ── Dispatch ─────────────────────────────────────────────────────────────────
 

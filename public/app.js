@@ -501,6 +501,7 @@ let _importEvents = []; // parsed events from dropped/selected .ics
 let _importSel    = new Set(); // indices of selected events
 
 function openNewEventModal(dateStr) {
+    if (window.__IS_PUBLIC) return;
     _editingEvent = null;
 
     document.getElementById('ev-summary').value     = '';
@@ -535,6 +536,7 @@ function openNewEventModal(dateStr) {
 }
 
 function openEditModal(idx) {
+    if (window.__IS_PUBLIC) return;
     const ev = evReg[idx];
     if (!ev) return;
     _editingEvent = ev;

@@ -210,6 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $loggedIn = isset($_SESSION['user']);
 $doSetup  = isset($_GET['setup']) && isset($_SESSION['setup_user']);
+$isPublic = !$loggedIn && !isset($_GET['admin']) && !$doSetup;
+$showAuth = !$loggedIn && (isset($_GET['admin']) || $doSetup);
 $csrf     = csrfToken();
 ?><!DOCTYPE html>
 <html lang="en">
@@ -222,7 +224,7 @@ $csrf     = csrfToken();
 </head>
 <body class="bg-gray-50 min-h-screen font-sans antialiased text-gray-900">
 
-<?php if (!$loggedIn): ?>
+<?php if ($showAuth): ?>
 <!-- ── Auth ─────────────────────────────────────────────────────────────── -->
 <div class="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-slate-50 to-blue-50">
     <div class="w-full max-w-sm">
@@ -333,6 +335,7 @@ $csrf     = csrfToken();
                           class="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-colors"></span>
                     <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase group-hover:text-gray-500 transition-colors">Calendars</p>
                 </button>
+                <?php if (!$isPublic): ?>
                 <div class="flex items-center gap-0.5">
                     <button onclick="showPublicUrls()" title="Public calendar URLs"
                             class="p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors rounded">
@@ -348,19 +351,22 @@ $csrf     = csrfToken();
                         </svg>
                     </button>
                 </div>
+                <?php endif; ?>
             </div>
             <div id="calendar-list">
                 <div class="px-3 py-2 text-sm text-gray-400">Loading…</div>
             </div>
         </div>
 
+        <?php if (!$isPublic): ?>
         <!-- User / sign out -->
         <div class="shrink-0 px-4 py-3 border-t border-gray-100">
             <div class="flex items-center justify-between text-sm gap-2">
-                <span class="text-gray-600 font-medium truncate"><?= htmlspecialchars($_SESSION['display_name']) ?></span>
+                <span class="text-gray-600 font-medium truncate"><?= htmlspecialchars($_SESSION['display_name'] ?? '') ?></span>
                 <a href="index.php?logout=1" class="text-xs text-gray-400 hover:text-red-500 transition-colors shrink-0">Sign out</a>
             </div>
         </div>
+        <?php endif; ?>
     </aside>
 
     <!-- Main -->
@@ -378,6 +384,7 @@ $csrf     = csrfToken();
             <div class="flex items-center gap-2 flex-1 min-w-0">
                 <!-- navigation bar for list view -->
                 <div id="list-nav" class="flex flex-wrap items-center gap-1 text-sm font-semibold text-gray-800">
+                  <?php if (!$isPublic): ?>
                   <button onclick="openNewEventModal()" title="New event"
                     class="p-2 rounded-lg bg-gray-200 hover:bg-blue-700 text-gray-800 hover:text-white text-sm font-light transition-colors leading-none whitespace-nowrap">
                     + New Event
@@ -387,9 +394,10 @@ $csrf     = csrfToken();
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
                           <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z"/>
                           <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
-                      </svg> 
+                      </svg>
                       Import
                   </button>
+                  <?php endif; ?>
                   <div class="relative flex-1 min-w-48">
                     <div class="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none">
                         <svg width="1em" height="1em" viewBox="0 0 20 20" class="text-gray-400 w-4">
@@ -607,7 +615,7 @@ $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 
     </div>
 </div>
 
-<script>window.__CSRF = <?= json_encode($csrf) ?>; window.__WEEK_START = <?= $weekStartDay ?>;</script>
+<script>window.__CSRF = <?= json_encode($isPublic ? '' : $csrf) ?>; window.__WEEK_START = <?= $weekStartDay ?>; window.__IS_PUBLIC = <?= json_encode($isPublic) ?>;</script>
 <script src="public/app.js"></script>
 <?php endif; ?>
 
