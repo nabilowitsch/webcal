@@ -703,6 +703,66 @@ async function saveEvent() {
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
+// ── Public calendar URLs ──────────────────────────────────────────────────────
+
+async function showPublicUrls() {
+    const content = document.getElementById('content');
+    content.innerHTML = `
+    <div class="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
+        <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 22 6.477 22 12h-4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+        </svg>
+        Loading…
+    </div>`;
+
+    try {
+        const data    = await apiFetch('calendar-tokens');
+        const base    = window.location.origin + window.location.pathname;
+        const copySvg = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>`;
+
+        const rows = data.tokens.map(t => {
+            const url = `${base}?c=${t.token}`;
+            return `
+            <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0">
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-900">${esc(t.name)}</div>
+                    <div class="text-xs text-gray-400 font-mono truncate mt-0.5">${esc(url)}</div>
+                </div>
+                <button data-url="${esc(url)}" onclick="copyToClipboard(this)"
+                        title="Copy URL"
+                        class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    ${copySvg}
+                </button>
+            </div>`;
+        }).join('');
+
+        content.innerHTML = `
+        <div class="mx-4 lg:mx-6 my-4 lg:my-6 flex flex-col gap-3">
+            <p class="text-xs text-gray-400">
+                These URLs deliver a live <code>.ics</code> feed for each calendar.
+                Paste them into any calendar app to subscribe without logging in.
+            </p>
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">${rows}</div>
+        </div>`;
+    } catch (err) {
+        content.innerHTML = errorBlock(err.message);
+    }
+}
+
+function copyToClipboard(btn) {
+    const url = btn.dataset.url;
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    });
+}
+
 // ── Calendar creation modal ───────────────────────────────────────────────────
 
 function openNewCalendarModal() {

@@ -37,6 +37,23 @@ try {
     if ($action === 'calendars') {
         echo json_encode(['calendars' => $caldav->getCalendars()]);
 
+    } elseif ($action === 'calendar-tokens') {
+        $secret = $config['proxy_secret'] ?? '';
+        if (!$secret) {
+            http_response_code(500);
+            echo json_encode(['error' => 'No proxy secret configured']);
+            exit;
+        }
+        $calendars = $caldav->getCalendars();
+        $tokens = array_map(static function (array $cal) use ($secret): array {
+            return [
+                'href'  => $cal['href'],
+                'name'  => $cal['name'],
+                'token' => substr(hash_hmac('sha256', $cal['href'], $secret), 0, 32),
+            ];
+        }, $calendars);
+        echo json_encode(['tokens' => $tokens]);
+
     } elseif ($action === 'events') {
         // Fetch from 1 month ago (for month-view backwards navigation) to 2 years ahead
         $start = new DateTime('-1 month');

@@ -1,4 +1,97 @@
 <?php
+// ── Public ICS proxy (no auth required) ──────────────────────────────────────
+if (isset($_GET['c']) && $_GET['c'] !== '') {
+    $proxyToken = $_GET['c'];
+    $cfg = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
+    $secret  = $cfg['proxy_secret'] ?? '';
+    $caldav  = $cfg['caldav'];
+
+    if (!$secret) { http_response_code(404); exit('Not found'); }
+
+    // Discover calendars via PROPFIND
+    $baseUrl    = rtrim($caldav['url'], '/');
+    $parsed     = parse_url($baseUrl);
+    $schemeHost = $parsed['scheme'] . '://' . $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+    $homeHref   = $caldav['calendar_home'] ?? '/';
+    $homeUrl    = $schemeHost . $homeHref;
+
+    $propXml = '<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+    <d:prop><d:displayname/><d:resourcetype/></d:prop></d:propfind>';
+
+    $propResp = icsProxyCurl('PROPFIND', $homeUrl, $caldav['username'], $caldav['password'], $propXml, ['Depth: 1']);
+    if (!$propResp) { http_response_code(503); exit; }
+
+    // Find calendar matching the token
+    $dom = new DOMDocument(); @$dom->loadXML($propResp);
+    $xp  = new DOMXPath($dom);
+    $xp->registerNamespace('d', 'DAV:');
+    $xp->registerNamespace('c', 'urn:ietf:params:xml:ns:caldav');
+    $matchedHref = null;
+    foreach ($xp->query('//d:response') as $node) {
+        if ($xp->query('.//c:calendar', $node)->length === 0) continue;
+        $href = trim($xp->query('d:href', $node)->item(0)?->textContent ?? '');
+        if (!$href) continue;
+        if (substr(hash_hmac('sha256', $href, $secret), 0, 32) === $proxyToken) {
+            $matchedHref = $href;
+            break;
+        }
+    }
+    if (!$matchedHref) { http_response_code(404); exit('Calendar not found'); }
+
+    // Fetch all events for that calendar via REPORT
+    $calUrl   = str_starts_with($matchedHref, 'http') ? $matchedHref : $schemeHost . $matchedHref;
+    $reportXml = '<?xml version="1.0" encoding="utf-8"?>
+<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+    <d:prop><c:calendar-data/></d:prop>
+    <c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter>
+</c:calendar-query>';
+
+    $evResp = icsProxyCurl('REPORT', $calUrl, $caldav['username'], $caldav['password'], $reportXml, ['Depth: 1']);
+    if (!$evResp) { http_response_code(503); exit; }
+
+    // Extract VEVENT blocks and assemble VCALENDAR
+    $evDom = new DOMDocument(); @$evDom->loadXML($evResp);
+    $evXp  = new DOMXPath($evDom);
+    $evXp->registerNamespace('c', 'urn:ietf:params:xml:ns:caldav');
+    $vevents = [];
+    foreach ($evXp->query('//c:calendar-data') as $node) {
+        if (preg_match_all('/BEGIN:VEVENT.+?END:VEVENT/ms', $node->textContent, $m)) {
+            foreach ($m[0] as $block) {
+                $vevents[] = rtrim($block);
+            }
+        }
+    }
+    $ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//WebCal//EN\r\nCALSCALE:GREGORIAN\r\n"
+         . implode("\r\n", $vevents)
+         . "\r\nEND:VCALENDAR\r\n";
+
+    header('Content-Type: text/calendar; charset=utf-8');
+    header('Content-Disposition: inline; filename="calendar.ics"');
+    header('Cache-Control: no-cache');
+    echo $ics;
+    exit;
+}
+
+function icsProxyCurl(string $method, string $url, string $user, string $pass, string $body, array $extra = []): ?string {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST  => $method,
+        CURLOPT_USERPWD        => "$user:$pass",
+        CURLOPT_HTTPAUTH       => CURLAUTH_ANY,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => array_merge(['Content-Type: application/xml; charset=utf-8'], $extra),
+        CURLOPT_POSTFIELDS     => $body,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $result = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($result !== false && $status < 400) ? (string) $result : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 session_start();
 
 const CONFIG_FILE = __DIR__ . '/config.json';
@@ -45,6 +138,13 @@ function verifyCsrf(): bool {
 // --- Bootstrap ---
 
 $config = loadConfig();
+
+// Ensure a stable proxy secret exists
+if (empty($config['proxy_secret'])) {
+    $config['proxy_secret'] = bin2hex(random_bytes(24));
+    saveConfig($config);
+}
+
 $error = '';
 $setupError = '';
 
@@ -233,12 +333,21 @@ $csrf     = csrfToken();
                           class="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-colors"></span>
                     <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase group-hover:text-gray-500 transition-colors">Calendars</p>
                 </button>
-                <button onclick="openNewCalendarModal()" title="Add calendar"
-                        class="p-1 text-gray-400 hover:bg-gray-200 transition-colors p-0.5 rounded">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-0.5">
+                    <button onclick="showPublicUrls()" title="Public calendar URLs"
+                            class="p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors rounded">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                    <button onclick="openNewCalendarModal()" title="Add calendar"
+                            class="p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors rounded">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div id="calendar-list">
                 <div class="px-3 py-2 text-sm text-gray-400">Loading…</div>
