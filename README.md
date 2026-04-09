@@ -14,9 +14,9 @@ WebCal connects to any CalDAV server and gives you a clean, responsive calendar 
 
 ## Features
 
-![List view](images/list-view.png)
-![Month view](images/month-view.png)
-![.ics file import](images/import-ics.png)
+<img src="images/list-view.png" alt="List view" style="border:1px solid gray; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"/>
+<img src="images/month-view.png" alt="Month view" style="border:1px solid gray; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"/>
+<img src="images/import-ics.png" alt=".ics file import" style="border:1px solid gray; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"/>
 
 - **List and month views** with smooth navigation
 - **Create, edit, and delete events** across multiple calendars
