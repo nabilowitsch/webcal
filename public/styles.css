@@ -343,6 +343,12 @@
   .-ml-1 {
     margin-left: calc(var(--spacing) * -1);
   }
+  .ml-1 {
+    margin-left: calc(var(--spacing) * 1);
+  }
+  .ml-2 {
+    margin-left: calc(var(--spacing) * 2);
+  }
   .ml-3 {
     margin-left: calc(var(--spacing) * 3);
   }
@@ -939,6 +945,9 @@
   }
   .text-amber-700 {
     color: var(--color-amber-700);
+  }
+  .text-black {
+    color: var(--color-black);
   }
   .text-blue-500 {
     color: var(--color-blue-500);

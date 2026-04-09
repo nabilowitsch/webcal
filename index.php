@@ -417,14 +417,14 @@ $csrf     = csrfToken();
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </button>
-                    <div id="month-label" class="text-sm font-semibold text-gray-800 min-w-30 text-center select-none"></div>
+                    <div id="month-label" class="text-sm font-semibold text-gray-800 min-w-20 text-center select-none"></div>
                     <button onclick="changeMonth(1)"
                             class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                         </svg>
                     </button>
-                    <button class="ml-3 px-2 py-1 border border-blue-600 rounded-md hover:bg-gray-200 text-sm" onclick="changeMonth(0)">
+                    <button class="ml-1 px-2 py-1 border border-blue-600 rounded-md hover:bg-gray-200 text-sm" onclick="changeMonth(0)">
                       Today
                     </button>
                 </div>

@@ -343,8 +343,8 @@ function renderMonth() {
                      title="${esc(ev.summary)}"
                      onclick="event.stopPropagation();openEditModal(${idx})">
                     <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${ev.color}"></span>
-                    <span class="text-[10px] md:text-[12px] text-gray-400 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
-                    <span class="text-[10px] md:text-[12px] text-gray-800 truncate">${esc(ev.summary)}</span>
+                    <span class="text-[10px] md:text-[12px] text-gray-800 shrink-0 tabular-nums">${fmtTime(new Date(ev.start))}</span>
+                    <span class="text-[10px] md:text-[12px] text-black font-bold truncate">${esc(ev.summary)}</span>
                 </div>`;
             }).join('');
 
@@ -404,7 +404,7 @@ function updateMonthLabel() {
     const el = document.getElementById('month-label');
     if (el) {
         el.textContent = state.currentMonth.toLocaleDateString(undefined, {
-            month: 'long', year: 'numeric',
+            month: 'short', year: 'numeric',
         });
     }
 }
