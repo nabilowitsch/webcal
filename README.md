@@ -2,7 +2,7 @@
 
 A lean, self-hosted web frontend for CalDAV calendars. No framework, no database, no build step required to deploy — just PHP and a CalDAV server.
 
-> **Personal project, shared as-is.** No guarantees of support or continued development.
+> **Personal project, shared as-is.** No guarantees of support or continued development. Feature requests may not be implemented.
 
 ---
 
@@ -79,7 +79,7 @@ Copy `config.example.json` to `config.json` and fill in your details:
 | `caldav.url` | Base URL of your CalDAV server |
 | `caldav.username` | CalDAV account username |
 | `caldav.password` | CalDAV account password |
-| `caldav.calendar_home` | Path to your calendars collection (Baïkal: `/dav.php/calendars/<user>/`) |
+| `caldav.calendar_home` | Path to your calendars collection (Baïkal: `/path-to-folder/dav.php/calendars/<user>/`) |
 | `week_start` | `"monday"` or `"sunday"` |
 | `users` | WebCal login accounts (independent of CalDAV credentials) |
 
@@ -87,8 +87,8 @@ Copy `config.example.json` to `config.json` and fill in your details:
 
 ### 3. Open in your browser
 
-- **Public view:** `https://yoursite.com/webcal/`
 - **Admin login:** `https://yoursite.com/webcal/?admin`
+- **Public view:** `https://yoursite.com/webcal/`
 
 ---
 
@@ -100,7 +100,7 @@ Visiting the URL without `?admin` shows a read-only public view — no login req
 
 ## Limitations
 
-- **Recurring events** are displayed but cannot be edited or deleted. The edit form is disabled for them.
+- **Recurring events** are displayed but cannot be edited or deleted (yet). The edit form is disabled for them.
 - **Single CalDAV account** — all calendars belong to one CalDAV user (see Non-goals).
 
 ---
