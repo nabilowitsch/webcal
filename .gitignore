@@ -1,7 +1,0 @@
-.gitignore
-.DS_Store
-node_modules/
-config.json
-CLAUDE.md
-package*.json
-tailwind.sh
