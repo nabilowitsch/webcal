@@ -9,10 +9,10 @@ The Tailwind v4 CLI watcher runs in the background during development:
 ```bash
 bash tailwind.sh
 # or manually:
-npx @tailwindcss/cli -i ./src/input.css -o ./public/styles.css --watch
+npx @tailwindcss/cli -i ./src/input.css -o ./styles.css --watch
 ```
 
-**Never manually rebuild** — assume the watcher is already running. `public/styles.css` is the compiled output; never edit it directly. All Tailwind source is in `src/input.css`. The `@source` directives tell Tailwind to scan `index.php`, `api.php`, and `public/app.js` for class names.
+**Never manually rebuild** — assume the watcher is already running. `styles.css` is the compiled output; never edit it directly. All Tailwind source is in `src/input.css`. The `@source` directives tell Tailwind to scan `index.php`, `api.php`, and `app.js` for class names.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ This is a single-page CalDAV web frontend with no framework. The three main file
 
 - **`index.php`** — Auth (login, first-login setup, logout, CSRF), app HTML shell, all modal HTML. Also handles the public ICS proxy at `?c=<token>` (no auth, runs before session_start).
 - **`api.php`** — All CalDAV operations behind session+CSRF guard. Actions: `calendars`, `events`, `update`, `create`, `delete`, `create-calendar`, `calendar-tokens`. Contains the full `CalDAV` PHP class.
-- **`public/app.js`** — All UI logic: rendering list/month views, sidebar, modals (event edit/create, calendar create), ICS import, public URL display, search/filter, state management.
+- **`app.js`** — All UI logic: rendering list/month views, sidebar, modals (event edit/create, calendar create), ICS import, public URL display, search/filter, state management.
 
 ### Auth & config
 

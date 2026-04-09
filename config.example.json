@@ -1,0 +1,16 @@
+{
+    "caldav": {
+        "url": "https://www.your-caldavserver-hostname.com",
+        "username": "your-caldav-user",
+        "password": "your-password",
+        "calendar_home": "/path-to-your-baikal-folder/dav.php/calendars/your-caldav-user/"
+    },
+    "week_start": "monday",
+    "users": [
+        {
+            "username": "editor1",
+            "password_hash": null,
+            "display_name": "Your Name"
+        }
+    ]
+}

@@ -1,4 +1,4 @@
 @import "tailwindcss";
 @source "../index.php";
 @source "../api.php";
-@source "../public/app.js";
+@source "../app.js";
