@@ -615,6 +615,27 @@ $weekStartDay = $weekStartMap[strtolower($config['week_start'] ?? 'monday')] ?? 
     </div>
 </div>
 
+<!-- ── Event detail modal (read-only, public view) ──────────────────────── -->
+<div id="detail-modal"
+     onclick="if(event.target===this)closeDetailModal()"
+     class="fixed inset-0 z-50 items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]"
+         onclick="event.stopPropagation()">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <h2 id="detail-title" class="text-base font-semibold text-gray-900 truncate pr-4"></h2>
+            <button onclick="closeDetailModal()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-colors shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div id="detail-body" class="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        </div>
+    </div>
+</div>
+
 <script>window.__CSRF = <?= json_encode($isPublic ? '' : $csrf) ?>; window.__WEEK_START = <?= $weekStartDay ?>; window.__IS_PUBLIC = <?= json_encode($isPublic) ?>;</script>
 <script src="public/app.js"></script>
 <?php endif; ?>

@@ -22,8 +22,10 @@
 /* Modal visibility – using a class avoids the display:'' → block bug */
 #ev-modal          { display: none;  }
 #ev-modal.is-open  { display: flex;  }
-#cal-modal         { display: none;  }
-#cal-modal.is-open { display: flex;  }
+#cal-modal            { display: none;  }
+#cal-modal.is-open    { display: flex;  }
+#detail-modal         { display: none;  }
+#detail-modal.is-open { display: flex;  }
 
 /* Month grid: remove right border on last column to avoid double-border with container */
 .cal-grid > .cal-cell:nth-child(7n) {

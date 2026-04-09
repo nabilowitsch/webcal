@@ -584,6 +584,13 @@
   .gap-4 {
     gap: calc(var(--spacing) * 4);
   }
+  .space-y-3 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 3) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
   .space-y-4 {
     :where(& > :not(:last-child)) {
       --tw-space-y-reverse: 0;
@@ -846,6 +853,9 @@
   .pt-px {
     padding-top: 1px;
   }
+  .pr-4 {
+    padding-right: calc(var(--spacing) * 4);
+  }
   .pl-1 {
     padding-left: calc(var(--spacing) * 1);
   }
@@ -942,6 +952,9 @@
   }
   .whitespace-nowrap {
     white-space: nowrap;
+  }
+  .whitespace-pre-wrap {
+    white-space: pre-wrap;
   }
   .text-amber-700 {
     color: var(--color-amber-700);
