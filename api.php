@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+session_name('webcal');
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 

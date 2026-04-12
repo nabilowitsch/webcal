@@ -92,6 +92,7 @@ function icsProxyCurl(string $method, string $url, string $user, string $pass, s
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+session_name('webcal');
 session_start();
 
 const CONFIG_FILE = __DIR__ . '/config.json';
